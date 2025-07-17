@@ -6,7 +6,6 @@
 *.parquet
 *.png
 *.zip
-*.csv
 
 # Ignore every csv inside exploration directory, recursively
 exploration/**/*.csv
