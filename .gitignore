@@ -1,15 +1,13 @@
-*.csv
 *.txt
 *.log
 *.html
 *.joblib
 *.keras
 *.parquet
-LECLERC/product_details.csv
 *.png
-RAKUTEN/Rakuten_data.csv
-RAKUTEN/seller_cache.csv
-visualiser/output_cdiscount.log
-visualiser/output_rakuten.log
-visualiser/output_carrefour.log
-visualiser/output_amazon.log
+*.zip
+*.csv
+
+# Ignore every csv inside exploration directory, recursively
+exploration/**/*.csv
+exploration/*.csv
