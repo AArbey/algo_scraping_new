@@ -1,5 +1,12 @@
 # Utiliser les services
 
+
+> Si vous utilisez git LFS pour le stockage des données, assurez-vous que git lfs ne prend pas trop de données sur la machine !
+> Si besoin, vous pouvez supprimer le cache de git lfs avec la commande suivante :
+> ```bash
+> git lfs prune
+> ```
+
 ## Installation
 
 ### Créer un venv
