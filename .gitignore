@@ -10,3 +10,6 @@
 # Ignore every csv inside exploration directory, recursively
 exploration/**/*.csv
 exploration/*.csv
+
+# Ignore .venv
+.venv/

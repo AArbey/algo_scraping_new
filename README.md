@@ -1,5 +1,19 @@
 # Utiliser les services
 
+## Installation
+
+### Créer un venv
+
+```bash
+# Créer un environnement virtuel
+python3 -m venv /home/scraping/venv
+# Activer l'environnement virtuel
+source /home/scraping/venv/bin/activate
+# Installer les dépendances
+pip install -r ./requirements.txt
+```
+
+
 ## Lancer le scraping
 
 ### Carrefour

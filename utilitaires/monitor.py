@@ -10,6 +10,7 @@ import asyncio
 import functools
 import typing
 import re  # <— add this import
+import datetime
 
 # --- Logging setup for systemd/journald ---
 logging.basicConfig(
@@ -103,10 +104,6 @@ def to_thread(func: typing.Callable) -> typing.Coroutine:
 # -------- Monitoring Logic --------
 @to_thread
 def check_file(path: str, columns: list[str]) -> tuple[list[str], list[str]]:
-    """
-    Checks the specified columns in the CSV at `path` for 10 consecutive nulls.
-    Returns a tuple of (new_alerts, resolved_alerts).
-    """
     new_alerts: list[str] = []
     resolved_alerts: list[str] = []
 
@@ -116,7 +113,6 @@ def check_file(path: str, columns: list[str]) -> tuple[list[str], list[str]]:
     except Exception as e:
         key = (path, "__read_error__")
         msg = f"Impossible de lire `{path}`: {e}"
-        # Treat read errors like column alerts
         if key not in active_alerts:
             new_alerts.append(format_error(msg))
             active_alerts.add(key)
@@ -226,6 +222,36 @@ def check_low_prices(path: str, columns: list[str]) -> list[str]:
         new_msgs = new_msgs[:5] + [format_low_price(f"`{path}`: {extra} autres nouveaux prix < 50 € détectés.")]
     return new_msgs
 
+# New: check that the most recent timestamp is not older than 40 minutes
+@to_thread
+def check_timestamp(path: str, columns: list[str]) -> tuple[list[str], list[str]]:
+    new_alerts: list[str] = []
+    resolved_alerts: list[str] = []
+    ts_cols = [c for c in columns if c.lower() == "timestamp"]
+    if not ts_cols:
+        return new_alerts, resolved_alerts
+    col = ts_cols[0]
+    try:
+        df = pd.read_csv(path, usecols=[col], low_memory=False)
+    except Exception:
+        return new_alerts, resolved_alerts
+    series = pd.to_datetime(df[col], dayfirst=True, errors='coerce')
+    if series.empty or series.isna().all():
+        return new_alerts, resolved_alerts
+    max_ts = series.max()
+    now = datetime.datetime.now()
+    key = (path, "__timestamp__")
+    if (now - max_ts) > datetime.timedelta(minutes=45):
+        msg = f"`{path}`: dernière mise à jour {max_ts}, > 45 minutes."
+        if key not in active_alerts:
+            new_alerts.append(format_error(msg))
+            active_alerts.add(key)
+    else:
+        if key in active_alerts:
+            resolved_alerts.append(format_recovery(f"`{path}` mis à jour récemment."))
+            active_alerts.remove(key)
+    return new_alerts, resolved_alerts
+
 @tasks.loop(minutes=1)
 async def monitor_loop():
     """Runs every 1 minute to check all configured CSV files."""
@@ -238,7 +264,7 @@ async def monitor_loop():
         new_alerts, resolved_alerts = await check_file(path, cols)
         # Send new error alerts
         for msg in new_alerts:
-            await send_message(channel, msg)
+            await send_message(channel, msg) 
         # Send recovery messages
         for msg in resolved_alerts:
             await send_message(channel, msg)
@@ -246,6 +272,13 @@ async def monitor_loop():
         # Check for any low prices (< 50€) and send those alerts
         low_price_msgs = await check_low_prices(path, cols)
         for msg in low_price_msgs:
+            await send_message(channel, msg)
+
+        # New: check timestamp freshness
+        ts_new, ts_res = await check_timestamp(path, cols)
+        for msg in ts_new:
+            await send_message(channel, msg)
+        for msg in ts_res:
             await send_message(channel, msg)
 
 @monitor_loop.before_loop
